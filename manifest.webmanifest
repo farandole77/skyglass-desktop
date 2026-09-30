@@ -1,0 +1,14 @@
+{
+  "name": "스카이글라스 데스크",
+  "short_name": "스카이글라스",
+  "description": "하늘·날씨 배경 위에 할 일, 일정, 알람을 함께 보는 데스크 대시보드",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1333",
+  "theme_color": "#0b1333",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
