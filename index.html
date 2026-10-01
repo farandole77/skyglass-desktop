@@ -331,6 +331,32 @@
   body.wide #dBottom { bottom: 4vh; }
   body.wide .ring-card, body.wide .dlg-card { max-height: 94vh; }
 
+  /* 업무 시간 기록 */
+  .list li.td { align-items: flex-start; }
+  .td .chk { margin-top: calc(var(--u) * 0.25); }
+  .td .del, .td .tgo { align-self: center; }
+  .tmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * 0.3); }
+  .tmain .txt { flex: none; }
+  .tm { font-size: 0.8em; opacity: 0.8; cursor: pointer; font-variant-numeric: tabular-nums; width: fit-content; border-radius: calc(var(--u) * 0.6); padding: 0 calc(var(--u) * 0.3); margin-left: calc(var(--u) * -0.3); }
+  .tm:hover { background: rgba(255,255,255,0.12); opacity: 1; }
+  .tm b { font-weight: 700; }
+  .tm.run { color: #8ff0c4; opacity: 1; }
+  .tm.run b { font-family: "Outfit", Pretendard, sans-serif; font-size: 1.12em; letter-spacing: 0.02em; }
+  .list li.running { background: rgba(74,192,138,0.15); }
+  .list li.running:hover { background: rgba(74,192,138,0.22); }
+  .tgo { flex: none; font: inherit; font-size: 0.82em; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); border: none; border-radius: calc(var(--u) * 1.2); padding: calc(var(--u) * 0.6) calc(var(--u) * 1.2); cursor: pointer; white-space: nowrap; }
+  .tgo:hover { background: rgba(255,255,255,0.3); }
+  .tgo.stop { background: #e5605a; }
+  .logbar { display: flex; gap: calc(var(--u) * 0.8); align-items: center; margin-bottom: calc(var(--u) * 1.2); }
+  .logbar input { font: inherit; color: #fff; color-scheme: dark; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22); border-radius: calc(var(--u) * 1.2); padding: calc(var(--u) * 0.7) calc(var(--u) * 1.1); }
+  .logt { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+  .logt th { text-align: left; font-weight: 600; opacity: 0.65; font-size: 0.85em; padding: calc(var(--u) * 0.5) calc(var(--u) * 0.7); border-bottom: 1px solid rgba(255,255,255,0.18); }
+  .logt td { padding: calc(var(--u) * 0.8) calc(var(--u) * 0.7); border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+  .logt td:nth-child(n+2) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .logsum { margin-top: calc(var(--u) * 1.2); text-align: right; opacity: 0.92; }
+  .empty2 { padding: calc(var(--u) * 2) 0; opacity: 0.65; text-align: center; }
+  .durbox { font-weight: 700; font-size: 1.15em; padding: calc(var(--u) * 0.4) 0; }
+
   #media, #launch, #adChip { display: none !important; }   /* 웹판: 음악 카드·광고·결제 없음 */
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { #colon { animation: none; } }
@@ -405,8 +431,8 @@
   </div>
   <div class="pane" id="pane-todo">
     <ul class="list" id="todoList"></ul>
-    <input id="todoInput" type="text" maxlength="200" placeholder="할 일을 적고 Enter" autocomplete="off">
-    <div class="desk-foot"><button id="clearDone" class="lnk hidden">완료 항목 지우기</button><span></span></div>
+    <input id="todoInput" type="text" maxlength="200" placeholder="할 일을 적고 Enter  (Ctrl+Enter = 바로 시작)" autocomplete="off">
+    <div class="desk-foot"><button id="clearDone" class="lnk hidden">완료 항목 지우기</button><button id="openLog" class="lnk" title="날짜별 시작·종료·소요시간 표 (복사·CSV)">업무 기록</button></div>
   </div>
   <div class="pane hidden" id="pane-event">
     <ul class="list" id="evList"></ul>
@@ -2077,6 +2103,21 @@ function upcoming(from, days) {
   return out.sort((a, b) => a.start - b.start);
 }
 
+
+/* ── 업무 시간 기록 (할 일의 시작·종료·소요시간) ──
+   소요시간은 '화면에 보이는 분 단위 시각의 차이'로 계산한다. (예: 09:10 시작, 09:55 종료 → 45분)
+   초 단위까지 계산하면 화면의 시각과 1분씩 어긋나서 회사 체크리스트 숫자와 안 맞을 수 있기 때문. */
+const minOf = ms => Math.floor(ms / 60000);
+const durMin = t => (t.start && t.end) ? Math.max(0, minOf(t.end) - minOf(t.start)) : null;
+const fmtDur = m => m == null ? '' : m < 1 ? '1분 미만' : m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간${m % 60 ? ' ' + (m % 60) + '분' : ''}`;
+const fmtClock = ms => { const d = new Date(ms); return `${ymdLocal(new Date()) === ymdLocal(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' '}${hhmm(d)}`; };
+const elapsedStr = ms => { const s = Math.max(0, Math.floor((Date.now() - ms) / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
+const isRunning = t => !!t.start && !t.end && !t.done;
+const hasRecord = t => !!t.start && !!t.end;
+const toLocalInput = ms => { if (!ms) return ''; const d = new Date(ms); return `${ymdLocal(d)}T${hhmm(d)}`; };
+const liveTodos = () => todos.filter(t => !t.hidden);
+const pendingCount = () => liveTodos().filter(t => !t.done && !hasRecord(t)).length;
+
 /* ── 소리 (WebAudio 합성음, 파일 없음) ── */
 const Sound = {
   ctx: null, loop: null,
@@ -2120,24 +2161,45 @@ document.querySelectorAll('#desk .tab').forEach(b => b.addEventListener('click',
 
 /* ── 할 일 ── */
 const CHECKSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function todoRank(t) { return isRunning(t) ? 0 : (t.done || hasRecord(t)) ? 2 : 1; }
 function renderTodos() {
-  const list = [...todos.filter(t => !t.done), ...todos.filter(t => t.done)];
-  $('todoList').innerHTML = list.length ? list.map(t => `
-    <li data-id="${t.id}" class="${t.done ? 'done' : ''}" draggable="${!t.done}">
-      <button class="chk" aria-label="${t.done ? '완료 취소' : '완료로 표시'}">${CHECKSVG}</button>
-      <span class="txt" title="더블클릭해서 수정">${escapeHtml(t.text)}</span>
-      <button class="del" aria-label="삭제">×</button>
-    </li>`).join('') : '<li class="empty">할 일을 아래 칸에 적어보세요.<br>Enter로 추가 · 더블클릭으로 수정 · 끌어서 순서 변경</li>';
-  $('clearDone').classList.toggle('hidden', !todos.some(t => t.done));
+  const vis = liveTodos();
+  const list = [0, 1, 2].flatMap(r => vis.filter(t => todoRank(t) === r));   // 진행 중 → 할 일 → 완료
+  $('todoList').innerHTML = list.length ? list.map(t => {
+    const run = isRunning(t), rec = hasRecord(t), fin = t.done || rec;
+    let sub = '', act = '';
+    if (run) { sub = `<span class="tm run" data-edit tabindex="0" role="button" title="클릭해서 시간 수정">▶ ${fmtClock(t.start)} 시작 · <b class="el" data-start="${t.start}">${elapsedStr(t.start)}</b></span>`; act = '<button class="tgo stop" data-act="stop">■ 종료</button>'; }
+    else if (rec) sub = `<span class="tm" data-edit tabindex="0" role="button" title="클릭해서 시간 수정">${fmtClock(t.start)} → ${fmtClock(t.end)} · <b>${fmtDur(durMin(t))}</b></span>`;
+    else if (!fin) act = '<button class="tgo" data-act="start">▶ 시작</button>';
+    return `
+    <li data-id="${t.id}" class="td${fin ? ' done' : ''}${run ? ' running' : ''}" draggable="${!fin && !run}">
+      <button class="chk" aria-label="${fin ? '완료 취소' : '완료로 표시'}">${CHECKSVG}</button>
+      <span class="tmain"><span class="txt" title="더블클릭해서 수정">${escapeHtml(t.text)}</span>${sub}</span>
+      ${act}<button class="del" aria-label="삭제">×</button>
+    </li>`;
+  }).join('') : '<li class="empty">할 일을 아래 칸에 적어보세요.<br>Enter로 추가 · <b>▶ 시작</b>/<b>■ 종료</b>로 업무 시간 기록<br>더블클릭으로 수정 · 끌어서 순서 변경</li>';
+  $('clearDone').classList.toggle('hidden', !liveTodos().some(t => t.done || hasRecord(t)));
 }
-function addTodo(text) { text = text.trim(); if (!text) return; todos.push({ id: uid(), text, done: false, at: Date.now() }); saveTodos(); renderDesk(); const l = $('todoList'); l.scrollTop = l.scrollHeight; }
-$('todoInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { addTodo(e.target.value); e.target.value = ''; } if (e.key === 'Escape') e.target.blur(); });
+function addTodo(text, startNow) { text = text.trim(); if (!text) return; todos.push({ id: uid(), text, done: false, at: Date.now(), start: startNow ? Date.now() : null, end: null }); saveTodos(); renderDesk(); const l = $('todoList'); l.scrollTop = 0; }
+$('todoInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { addTodo(e.target.value, e.ctrlKey); e.target.value = ''; } if (e.key === 'Escape') e.target.blur(); });
 $('todoList').addEventListener('click', e => {
   const li = e.target.closest('li[data-id]'); if (!li) return;
   const t = todos.find(x => x.id === li.dataset.id); if (!t) return;
-  if (e.target.closest('.chk')) { t.done = !t.done; saveTodos(); renderDesk(); }
-  else if (e.target.closest('.del')) { todos = todos.filter(x => x.id !== t.id); saveTodos(); renderDesk(); }
+  if (e.target.closest('[data-act="start"]')) { t.start = Date.now(); t.end = null; t.done = false; saveTodos(); renderDesk(); return; }
+  if (e.target.closest('[data-act="stop"]')) { t.end = Date.now(); t.done = true; saveTodos(); renderDesk(); return; }
+  if (e.target.closest('[data-edit]')) { openDlg('task', t.id); return; }
+  if (e.target.closest('.chk')) {
+    if (isRunning(t)) { t.end = Date.now(); t.done = true; }                       // 진행 중에 체크 = 종료
+    else if (hasRecord(t)) { if (!confirm('완료를 취소하면 시작·종료 기록이 지워집니다. 계속할까요?')) return; t.done = false; t.start = null; t.end = null; }
+    else t.done = !t.done;
+    saveTodos(); renderDesk(); return;
+  }
+  if (e.target.closest('.del')) {
+    if ((hasRecord(t) || isRunning(t)) && !confirm('시간 기록도 함께 삭제됩니다. 삭제할까요?')) return;
+    todos = todos.filter(x => x.id !== t.id); saveTodos(); renderDesk();
+  }
 });
+$('todoList').addEventListener('keydown', e => { const m = e.target.closest && e.target.closest('[data-edit]'); if (m && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); m.click(); } });
 $('todoList').addEventListener('dblclick', e => {
   const span = e.target.closest('.txt'); if (!span) return;
   const li = span.closest('li'), t = todos.find(x => x.id === li.dataset.id); if (!t) return;
@@ -2151,13 +2213,18 @@ $('todoList').addEventListener('dragstart', e => { const li = e.target.closest('
 $('todoList').addEventListener('dragend', () => { dragId = null; renderTodos(); });
 $('todoList').addEventListener('dragover', e => {
   if (!dragId) return; e.preventDefault();
-  const over = e.target.closest('li[data-id]'); if (!over || over.dataset.id === dragId || over.classList.contains('done')) return;
+  const over = e.target.closest('li[data-id]'); if (!over || over.dataset.id === dragId || over.classList.contains('done') || over.classList.contains('running')) return;
   const from = todos.findIndex(t => t.id === dragId), to = todos.findIndex(t => t.id === over.dataset.id);
   const [item] = todos.splice(from, 1); todos.splice(to, 0, item); saveTodos();
   const dragEl = $('todoList').querySelector(`li[data-id="${dragId}"]`);
   const r = over.getBoundingClientRect(); over.parentNode.insertBefore(dragEl, e.clientY < r.top + r.height / 2 ? over : over.nextSibling);
 });
-$('clearDone').addEventListener('click', () => { todos = todos.filter(t => !t.done); saveTodos(); renderDesk(); });
+$('clearDone').addEventListener('click', () => {
+  const now = Date.now();
+  todos.forEach(t => { if (!t.hidden && hasRecord(t)) { t.hidden = true; t.hiddenAt = now; } });   // 기록은 보관 (90일)
+  todos = todos.filter(t => t.hidden || !t.done);                                                 // 기록 없는 완료 항목만 삭제
+  saveTodos(); renderDesk();
+});
 
 /* ── 일정 목록 ── */
 function renderEvents() {
@@ -2220,26 +2287,71 @@ function nextAlarm(now) {
 }
 function updateNextUp() {
   const now = new Date(), ev = upcoming(now, 8).find(o => o.start.getTime() > now.getTime() - 5 * 60e3), al = nextAlarm(now);
-  const rows = [];
+  const runs = liveTodos().filter(isRunning);
+  const rows = runs.slice(0, 2).map(t => `<div class="nu"><span>진행 중</span><b>${escapeHtml(t.text)}</b><small class="el" data-start="${t.start}">${elapsedStr(t.start)}</small></div>`);
   if (ev) { const same = ymdLocal(ev.start) === ymdLocal(now); rows.push(`<div class="nu"><span>다음 일정</span><b>${same ? '' : MD(ev.start) + ' '}${hhmm(ev.start)} ${escapeHtml(ev.ev.title)}</b><small>${ev.start < now ? '진행 중' : rel(ev.start - now)}</small></div>`); }
   if (al) { const same = ymdLocal(al.t) === ymdLocal(now); rows.push(`<div class="nu"><span>다음 알람</span><b>${same ? '' : MD(al.t) + ' '}${hhmm(al.t)}${al.a.label ? ' ' + escapeHtml(al.a.label) : ''}</b><small>${rel(al.t - now)}</small></div>`); }
   $('nextUp').innerHTML = rows.join(''); $('dNext').innerHTML = rows.join('');
-  const left = todos.filter(t => !t.done).length;
-  $('deskPill').textContent = `할 일 ${left}${ev ? ` · ${hhmm(ev.start)} ${ev.ev.title}` : ''}${al && !ev ? ` · 알람 ${hhmm(al.t)}` : ''}`;
+  const left = pendingCount();
+  $('deskPill').textContent = runs.length
+    ? `▶ ${runs[0].text.length > 20 ? runs[0].text.slice(0, 20) + '…' : runs[0].text} · ${Math.floor((Date.now() - runs[0].start) / 60000)}분${runs.length > 1 ? ` 외 ${runs.length - 1}건` : ''}`
+    : `할 일 ${left}${ev ? ` · ${hhmm(ev.start)} ${ev.ev.title}` : ''}${al && !ev ? ` · 알람 ${hhmm(al.t)}` : ''}`;
 }
 function renderDesk() {
   renderTodos(); renderEvents(); renderAlarms();
   const now = new Date();
-  $('cTodo').textContent = todos.filter(t => !t.done).length || '';
+  $('cTodo').textContent = (pendingCount() || '') + (liveTodos().some(isRunning) ? ' ●' : '');
   $('cEvent').textContent = upcoming(now, 1).filter(o => o.start >= now).length || '';
   $('cAlarm').textContent = alarms.filter(a => a.on).length || '';
   updateNextUp();
 }
 
-/* ── 입력창 (일정·알람) ── */
+
+/* ── 업무 기록 (날짜별 표 · 복사 · CSV) ── */
+let logDate = ymdLocal(new Date());
+const logRowsOf = d => liveAndHidden().filter(t => t.start && ymdLocal(new Date(t.start)) === d).sort((a, b) => a.start - b.start);
+const liveAndHidden = () => todos;
+function endLabel(t) { const s = new Date(t.start), e = new Date(t.end); const dd = Math.round((new Date(e.getFullYear(), e.getMonth(), e.getDate()) - new Date(s.getFullYear(), s.getMonth(), s.getDate())) / 864e5); return hhmm(e) + (dd > 0 ? ` (+${dd}일)` : ''); }
+function renderLog() {
+  const rows = logRowsOf(logDate), total = rows.reduce((n, t) => n + (durMin(t) || 0), 0), running = rows.filter(isRunning).length;
+  $('dlgBody').innerHTML = `<div class="logbar"><button class="lnk" data-log="prev" aria-label="전날">◀</button><input id="logDate" type="date" value="${logDate}"><button class="lnk" data-log="next" aria-label="다음날">▶</button><button class="lnk" data-log="today">오늘</button></div>` +
+    (rows.length ? `<table class="logt"><thead><tr><th>업무</th><th>시작</th><th>종료</th><th>소요</th></tr></thead><tbody>${rows.map(t =>
+      `<tr><td>${escapeHtml(t.text)}</td><td>${hhmm(new Date(t.start))}</td><td>${t.end ? endLabel(t) : '진행 중'}</td><td>${t.end ? fmtDur(durMin(t)) : '—'}</td></tr>`).join('')}</tbody></table>
+      <div class="logsum">합계 <b>${total ? fmtDur(total) : '0분'}</b> · ${rows.length}건${running ? ` · 진행 중 ${running}건은 합계에서 제외` : ''}</div>` : '<div class="empty2">이 날짜에 기록된 업무가 없어요.</div>');
+}
+const sheetSafe = v => /^[=+\-@]/.test(String(v)) ? "'" + v : v;   // 엑셀이 글자를 수식으로 실행하지 않게
+function logTable(rows) { return rows.map(t => [sheetSafe(t.text.replace(/[\t\r\n]+/g, ' ')), hhmm(new Date(t.start)), t.end ? endLabel(t) : '', t.end ? durMin(t) : '', t.end ? fmtDur(durMin(t)) : '진행 중']); }
+const LOG_HEAD = ['업무', '시작', '종료', '소요(분)', '소요시간'];
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-999px;top:0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e2) { return false; } }
+}
+function updateDurBox() {
+  const el = $('fDur'); if (!el) return; const s = $('fStart').value, e = $('fEnd').value;
+  if (s && e) { const a = new Date(s).getTime(), b = new Date(e).getTime(); el.textContent = b >= a ? fmtDur(Math.max(0, minOf(b) - minOf(a))) : '종료가 시작보다 빠릅니다'; }
+  else el.textContent = s ? '진행 중' : '—';
+}
+
+/* ── 입력창 (일정·알람·업무 시간) ── */
 let dlg = null;
 const opt = (list, cur) => list.map(([v, l]) => `<option value="${v}"${String(cur) === String(v) ? ' selected' : ''}>${l}</option>`).join('');
 function openDlg(type, id) {
+  if (type === 'log') {
+    logDate = ymdLocal(new Date()); dlg = { type: 'log', id: null };
+    $('dlgTitle').textContent = '업무 기록'; renderLog();
+    $('dlgActions').innerHTML = '<button class="btn ghost" data-act="copy">복사 (엑셀에 붙여넣기)</button><button class="btn ghost" data-act="csv">CSV 저장</button><button class="btn" data-act="cancel">닫기</button>';
+    $('dlg').classList.remove('hidden'); return;
+  }
+  if (type === 'task') {
+    const t = todos.find(x => x.id === id); if (!t) return;
+    dlg = { type: 'task', id }; $('dlgTitle').textContent = '업무 시간 수정';
+    $('dlgBody').innerHTML = `<label class="fld"><span>업무</span><input id="fTaskText" type="text" maxlength="200" value="${escapeHtml(t.text)}"></label>
+      <label class="fld"><span>시작</span><input id="fStart" type="datetime-local" value="${toLocalInput(t.start)}"></label>
+      <label class="fld"><span>종료 <em>(진행 중이면 비워 두세요)</em></span><input id="fEnd" type="datetime-local" value="${toLocalInput(t.end)}"></label>
+      <div class="fld"><span>소요 시간</span><div id="fDur" class="durbox">${hasRecord(t) ? fmtDur(durMin(t)) : (t.start ? '진행 중' : '—')}</div></div>`;
+    $('dlgActions').innerHTML = `${t.start ? '<button class="btn danger push" data-act="clearrec">기록 지우기</button>' : '<span class="push"></span>'}${t.end ? '<button class="btn ghost" data-act="again">같은 업무 새로 시작</button>' : ''}<button class="btn ghost" data-act="cancel">취소</button><button class="btn" data-act="save">저장</button>`;
+    $('dlg').classList.remove('hidden'); setTimeout(() => $('fTaskText').focus(), 30); return;
+  }
   const now = new Date(), half = new Date(now.getTime() + 30 * 60e3); half.setMinutes(half.getMinutes() < 30 ? 30 : 0, 0, 0); if (half.getMinutes() === 0) half.setHours(half.getHours() + 1);
   let cur, html, title;
   if (type === 'event') {
@@ -2269,6 +2381,20 @@ function openDlg(type, id) {
 function closeDlg() { $('dlg').classList.add('hidden'); dlg = null; }
 function saveDlg() {
   if (!dlg) return;
+  if (dlg.type === 'log') return;
+  if (dlg.type === 'task') {
+    const t = todos.find(x => x.id === dlg.id); if (!t) return closeDlg();
+    const text = $('fTaskText').value.trim(); if (!text) { $('fTaskText').focus(); return; }
+    const sv = $('fStart').value, ev = $('fEnd').value;
+    const s = sv ? new Date(sv).getTime() : null, e = ev ? new Date(ev).getTime() : null;
+    if (!s && e) { alert('시작 시각을 먼저 입력해 주세요.'); $('fStart').focus(); return; }
+    if (s && e && e < s) { alert('종료 시각이 시작 시각보다 빠릅니다.'); $('fEnd').focus(); return; }
+    t.text = text;
+    t.start = s ? (t.start && minOf(t.start) === minOf(s) ? t.start : s) : null;     // 분이 그대로면 초 단위 원본 유지
+    t.end = e ? (t.end && minOf(t.end) === minOf(e) ? t.end : e) : null;
+    if (t.start && t.end) t.done = true; else if (t.start) t.done = false;
+    saveTodos(); closeDlg(); renderDesk(); return;
+  }
   if (dlg.type === 'event') {
     const title = $('fTitle').value.trim(), date = $('fDate').value, time = $('fTime').value;
     if (!title) { $('fTitle').focus(); return; } if (!date || !time) { (date ? $('fTime') : $('fDate')).focus(); return; }
@@ -2287,6 +2413,8 @@ function saveDlg() {
 $('dlg').addEventListener('click', e => {
   if (e.target === $('dlg')) return closeDlg();
   const chip = e.target.closest('.chip'); if (chip) { chip.classList.toggle('on'); chip.setAttribute('aria-pressed', chip.classList.contains('on')); return; }
+  const lg = e.target.closest('[data-log]');
+  if (lg) { const d = parseYmd(logDate); if (lg.dataset.log === 'prev') d.setDate(d.getDate() - 1); else if (lg.dataset.log === 'next') d.setDate(d.getDate() + 1); else d.setTime(Date.now()); logDate = ymdLocal(d); renderLog(); return; }
   const pre = e.target.closest('[data-preset]');
   if (pre) { const set = { weekday: [1, 2, 3, 4, 5], every: [0, 1, 2, 3, 4, 5, 6], weekend: [0, 6], none: [] }[pre.dataset.preset];
     document.querySelectorAll('#fDays .chip').forEach(c => { const on = set.includes(+c.dataset.d); c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); }); return; }
@@ -2294,6 +2422,23 @@ $('dlg').addEventListener('click', e => {
   if (act.dataset.act === 'cancel') closeDlg();
   else if (act.dataset.act === 'save') saveDlg();
   else if (act.dataset.act === 'test') { Sound.unlock(); setTimeout(() => { if (Sound.ok()) { Sound.burst(); } else updateAudioHint(); }, 60); }
+  else if (act.dataset.act === 'copy') {
+    const rows = logTable(logRowsOf(logDate));
+    copyText([LOG_HEAD, ...rows].map(r => r.join('\t')).join('\r\n')).then(ok => { act.textContent = ok ? '복사됨 ✓' : '복사 실패 · CSV 저장을 이용하세요'; setTimeout(() => { act.textContent = '복사 (엑셀에 붙여넣기)'; }, 1800); });
+  }
+  else if (act.dataset.act === 'csv') {
+    const rows = logTable(logRowsOf(logDate)), q = c => typeof c === 'number' ? c : '"' + String(c).replace(/"/g, '""') + '"';
+    const blob = new Blob(['\ufeff' + [LOG_HEAD, ...rows].map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `업무기록-${logDate}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  else if (act.dataset.act === 'clearrec') {
+    if (!confirm('이 업무의 시작·종료 기록을 지울까요?')) return;
+    const t = todos.find(x => x.id === dlg.id); if (t) { t.start = null; t.end = null; saveTodos(); } closeDlg(); renderDesk();
+  }
+  else if (act.dataset.act === 'again') {
+    const t = todos.find(x => x.id === dlg.id);
+    if (t) { todos.push({ id: uid(), text: t.text, done: false, at: Date.now(), start: Date.now(), end: null }); saveTodos(); } closeDlg(); renderDesk();
+  }
   else if (act.dataset.act === 'del') {
     if (!confirm('삭제할까요?')) return;
     if (dlg.type === 'event') { events = events.filter(x => x.id !== dlg.id); saveEvents(); } else { alarms = alarms.filter(x => x.id !== dlg.id); saveAlarms(); }
@@ -2301,6 +2446,9 @@ $('dlg').addEventListener('click', e => {
   }
 });
 $('dlg').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.target.tagName !== 'BUTTON') { e.preventDefault(); saveDlg(); } });
+$('dlg').addEventListener('change', e => { if (e.target.id === 'logDate' && e.target.value) { logDate = e.target.value; renderLog(); } });
+$('dlg').addEventListener('input', e => { if (e.target.id === 'fStart' || e.target.id === 'fEnd') updateDurBox(); });
+$('openLog').addEventListener('click', () => openDlg('log'));
 $('addEvent').addEventListener('click', () => openDlg('event'));
 $('addAlarm').addEventListener('click', () => openDlg('alarm'));
 
@@ -2365,11 +2513,13 @@ function tickDesk() {
   if (due.length) { snoozes = snoozes.filter(s => s.at > now); saveSnoozes(); due.forEach(s => { if (now - s.at < GRACE * 4) ring({ title: s.title, time: s.time }); }); }
 }
 setInterval(tickDesk, 1000);
+setInterval(() => { document.querySelectorAll('.el[data-start]').forEach(el => { el.textContent = elapsedStr(+el.dataset.start); }); }, 1000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tickDesk(); renderDesk(); } });
 // 정리: 지난 일회성 일정, 오래된 알림 기록
 function pruneDesk() {
   const y = new Date(); y.setDate(y.getDate() - 1); const ys = ymdLocal(y);
   const before = events.length; events = events.filter(e => e.repeat !== 'none' || e.date >= ys); if (events.length !== before) saveEvents();
+  const c90 = Date.now() - 90 * 864e5, tb = todos.length; todos = todos.filter(t => !(t.hidden && (t.hiddenAt || 0) < c90)); if (todos.length !== tb) saveTodos();
   const cut = Date.now() - 3 * 864e5; let ch = false; for (const k of Object.keys(fired)) if (fired[k] < cut) { delete fired[k]; ch = true; } if (ch) store.set('fired', fired);
 }
 pruneDesk();
@@ -2423,7 +2573,7 @@ $('dkFile').addEventListener('change', async e => {
     const T = arr || j.todos || [], E = arr ? [] : (j.events || []), A = arr ? [] : (j.alarms || []);
     if (![T, E, A].every(Array.isArray)) throw new Error();
     if (confirm(`백업에서 할 일 ${T.length}개 · 일정 ${E.length}개 · 알람 ${A.length}개를 불러옵니다.\n지금 목록은 바뀝니다.`)) {
-      todos = T.filter(t => t && t.text).map(t => ({ id: t.id || uid(), text: String(t.text), done: !!t.done, at: t.at || Date.now() }));
+      todos = T.filter(t => t && t.text).map(t => ({ id: t.id || uid(), text: String(t.text), done: !!t.done, at: t.at || Date.now(), start: Number.isFinite(t.start) ? t.start : null, end: Number.isFinite(t.end) ? t.end : null, hidden: !!t.hidden, hiddenAt: t.hiddenAt || 0 }));
       events = E.filter(x => x && x.title && x.date && x.time).map(x => ({ id: x.id || uid(), title: String(x.title), date: x.date, time: x.time, remind: x.remind ?? 10, repeat: x.repeat || 'none', link: safeUrl(x.link) }));
       alarms = A.filter(x => x && x.time).map(x => ({ id: x.id || uid(), time: x.time, label: String(x.label || ''), days: Array.isArray(x.days) ? x.days : [], on: x.on !== false }));
       saveTodos(); saveEvents(); saveAlarms(); renderDesk();
