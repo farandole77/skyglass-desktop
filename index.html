@@ -8,6 +8,11 @@
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b1333">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="스카이글라스">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
 <style>
   @font-face { font-family: "Outfit"; font-weight: 300; src: url(fonts/outfit-latin-300-normal.woff2) format("woff2"); }
@@ -377,6 +382,81 @@
   .dlg-actions { flex-wrap: wrap; }
   .dlg-actions .btn { white-space: nowrap; }
 
+
+  /* ═════════════ 모바일 · 터치 · 세로 화면 ═════════════ */
+  :root { --dv: 1vh; --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
+  @supports (height: 1dvh) { :root { --dv: 1dvh; } }
+  html, body { overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .edit { display: none; place-items: center; flex: none; align-self: center; width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: none; border: none; color: inherit; opacity: 0.55; cursor: pointer; border-radius: 50%; font-size: 1.05em; padding: 0; }
+  .addrow { display: flex; gap: calc(var(--u) * 0.8); margin-top: calc(var(--u) * 1); align-items: stretch; }
+  .addrow #todoInput { margin-top: 0; flex: 1; min-width: 0; width: auto; }
+  .ab { display: none; flex: none; font: inherit; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); border: none; border-radius: calc(var(--u) * 1.4); padding: 0 calc(var(--u) * 1.8); cursor: pointer; }
+  .ab:active { background: rgba(255,255,255,0.32); }
+  @media (hover: none) { .del { opacity: 0.55; } .edit { display: inline-grid; } .ab { display: inline-grid; place-items: center; } }
+
+  body.portrait { --u: clamp(6.6px, 1vh, 11px); }
+  @supports (height: 1dvh) { body.portrait { --u: clamp(6.6px, 1dvh, 11px); } }
+  body.portrait[data-cpos] #face { left: calc(5vw + var(--sl)); right: calc(5vw + var(--sr)); top: calc(calc(var(--dv) * 7.8) + var(--st) + var(--safe-t)); bottom: auto; transform: translate(var(--bx,0px), var(--by,0px)); text-align: left; }
+  body.portrait #date { font-size: min(calc(var(--dv) * 2.7), 5vw); margin-bottom: calc(var(--dv) * 0.5); }
+  body.portrait #time { font-size: calc(min(calc(var(--dv) * 13.5), 21vw) * var(--clock-scale)); }
+  body.portrait #details { font-size: min(calc(var(--dv) * 2.35), 3.7vw); margin-top: calc(var(--dv) * 1.2); max-width: none; row-gap: calc(var(--dv) * 0.4); }
+  body.portrait #details .drow { column-gap: 3vw; }
+  body.portrait #nextUp, body.portrait #dNext { font-size: min(calc(var(--dv) * 2.25), 3.6vw); margin-top: calc(var(--dv) * 1); }
+  body.portrait #corner { top: calc(calc(var(--dv) * 2.3) + var(--st) + var(--safe-t)); right: calc(4vw + var(--sr)); font-size: min(calc(var(--dv) * 2.3), 3.6vw); }
+  body.portrait #sun { display: none; }
+  body.portrait #gear { top: calc(calc(var(--dv) * 2) + var(--st) + var(--safe-t)); left: calc(2vw + var(--sl)); width: max(40px, calc(var(--dv) * 5.6)); height: max(40px, calc(var(--dv) * 5.6)); opacity: 0.5; }
+  body.portrait #desk, body.portrait[data-skin] #desk { left: calc(3vw + var(--sl)); right: calc(3vw + var(--sr)); width: auto; top: calc(calc(var(--dv) * 41.5) + var(--st)); bottom: calc(calc(var(--dv) * 1.8) + var(--sb) + var(--safe-b)); padding: calc(var(--u) * 1.6) calc(var(--u) * 1.6) calc(var(--u) * 1); }
+  body.portrait #deskPill { left: calc(4vw + var(--sl)); right: calc(4vw + var(--sr)); bottom: calc(calc(var(--dv) * 2.2) + var(--sb) + var(--safe-b)); max-width: none; text-align: center; font-size: calc(var(--u) * 2.3); padding: calc(var(--u) * 1.5) calc(var(--u) * 2); }
+  body.portrait #skinInfo { display: none; }
+  body.portrait.desk-folded[data-skin="horizon"] #skinInfo, body.portrait.desk-folded[data-skin="moon"] #skinInfo { display: block; left: calc(5vw + var(--sl)); bottom: calc(calc(var(--dv) * 11) + var(--sb) + var(--safe-b)); font-size: min(calc(var(--dv) * 2.3), 4vw); }
+  body.portrait[data-skin="dots"] #dHead { left: calc(5vw + var(--sl)); top: calc(calc(var(--dv) * 7.8) + var(--st) + var(--safe-t)); }
+  body.portrait #dTime { font-size: calc(min(calc(var(--dv) * 13.5), 21vw) * var(--clock-scale)); }
+  body.portrait #dCity { font-size: min(calc(var(--dv) * 3), 5vw); margin-top: calc(var(--dv) * 0.8); }
+  body.portrait #dNext { display: none; }
+  body.portrait #dBottom { left: calc(5vw + var(--sl)); bottom: auto; top: calc(calc(var(--dv) * 26.8) + var(--st) + var(--safe-t)); }
+  body.portrait #nextUp .nu:nth-child(n+4) { display: none; }
+  @media (min-width: 600px) { body.portrait #desk, body.portrait[data-skin] #desk { top: calc(calc(var(--dv) * 46) + var(--st)); } }   /* 태블릿 세로: 글자가 상대적으로 커서 패널을 조금 아래로 */
+  body.portrait[data-skin="dots"] #desk { top: calc(calc(var(--dv) * 48.5) + var(--st)); }
+  /* 요약 한 줄: 긴 업무명은 말줄임 */
+  body.portrait .nu { flex-wrap: nowrap; }
+  body.portrait .nu b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.portrait .nu span, body.portrait .nu small { flex: none; }
+  /* 아래쪽 링크 줄: 글자가 줄바꿈되지 않게 */
+  .desk-foot { flex-wrap: wrap; row-gap: 0; }
+  .desk-foot .lnk { white-space: nowrap; }
+  .sm { display: none; }
+  body.portrait .lg { display: none; } body.portrait .sm { display: inline; }
+  body.portrait #dSeason { font-size: min(calc(var(--dv) * 2.4), 4vw); }
+  body.portrait #dTop { font-size: min(calc(var(--dv) * 2.3), 3.8vw); margin-top: calc(var(--dv) * 0.4); }
+  /* 손가락으로 누르기 쉬운 크기 */
+  body.portrait .desk-tabs .tab { padding: calc(var(--u) * 1.3) calc(var(--u) * 0.4); }
+  body.portrait .chk { width: calc(var(--u) * 3.8); height: calc(var(--u) * 3.8); }
+  body.portrait .chk svg { width: calc(var(--u) * 2.4); height: calc(var(--u) * 2.4); }
+  body.portrait .del, body.portrait .edit { width: calc(var(--u) * 4); height: calc(var(--u) * 4); }
+  body.portrait .tgo { padding: calc(var(--u) * 1) calc(var(--u) * 1.4); }
+  body.portrait .tgrp .tgo { padding: calc(var(--u) * 1) calc(var(--u) * 1.2); }
+  body.portrait .list li { padding: calc(var(--u) * 1.15) calc(var(--u) * 0.6); }
+  body.portrait .lnk { padding: calc(var(--u) * 0.9) calc(var(--u) * 1); }
+  body.portrait .sw { width: calc(var(--u) * 6.4); height: calc(var(--u) * 3.8); }
+  body.portrait .sw::after { width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); top: calc(var(--u) * 0.3); left: calc(var(--u) * 0.3); }
+  body.portrait .sw.on::after { transform: translateX(calc(var(--u) * 2.6)); }
+  body.portrait .chip { width: calc(var(--u) * 5.2); height: calc(var(--u) * 5.2); }
+  body.portrait #todoInput { padding: calc(var(--u) * 1.4) calc(var(--u) * 1.6); }
+  body.portrait .ab { padding: 0 calc(var(--u) * 2.2); }
+  body.portrait .dlg-card { width: 94vw; max-height: calc(var(--dv) * 92); padding: calc(var(--u) * 2); }
+  body.portrait .two { grid-template-columns: 1fr; }
+  body.portrait .sess { grid-template-columns: minmax(0,1fr) auto; }
+  body.portrait .sess .sS { grid-column: 1; } body.portrait .sess .sE { grid-column: 1; grid-row: 2; } body.portrait .sess [data-sdel] { grid-column: 2; grid-row: 1 / span 2; }
+  body.portrait .ring-card { width: 94vw; }
+  body.portrait #toasts { width: 94vw; top: calc(calc(var(--dv) * 1.5) + var(--safe-t)); }
+  body.portrait #settings { width: 94vw; }
+  body.portrait .skins { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: calc(var(--u) * 1); }   /* 스킨 선택: 한 줄에 3개 */
+  body.portrait .skin { width: auto; }
+  body.portrait .skin .ds { display: none; }
+  body.portrait .seg { display: flex; flex-wrap: wrap; max-width: 100%; }   /* 설정의 선택 버튼 줄이 화면 밖으로 나가지 않게 줄바꿈 */
+  body.portrait .seg button { white-space: normal; flex: 1 1 auto; }
+  body.portrait input, body.portrait select { font-size: max(16px, 1em); }   /* iOS가 입력창을 확대하지 않도록 */
+
   #media, #launch, #adChip { display: none !important; }   /* 웹판: 음악 카드·광고·결제 없음 */
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { #colon { animation: none; } }
@@ -451,8 +531,8 @@
   </div>
   <div class="pane" id="pane-todo">
     <ul class="list" id="todoList"></ul>
-    <input id="todoInput" type="text" maxlength="200" placeholder="할 일을 적고 Enter  (Ctrl+Enter = 바로 시작)" autocomplete="off">
-    <div class="desk-foot"><button id="clearDone" class="lnk hidden">완료 항목 지우기</button><button id="pauseAll" class="lnk hidden" title="점심시간·퇴근 때 한 번에">진행 중 모두 일시정지</button><button id="openLog" class="lnk" title="날짜별 시작·종료·소요시간 표 (복사·CSV)">업무 기록</button></div>
+    <div class="addrow"><input id="todoInput" type="text" maxlength="200" placeholder="할 일을 적고 Enter  (Ctrl+Enter = 바로 시작)" autocomplete="off" enterkeyhint="done"><button id="todoAdd" class="ab" aria-label="추가">＋</button><button id="todoAddGo" class="ab" aria-label="추가하고 바로 시작" title="추가하고 바로 시작">▶</button></div>
+    <div class="desk-foot"><button id="clearDone" class="lnk hidden"><span class="lg">완료 항목 지우기</span><span class="sm">완료 지우기</span></button><button id="pauseAll" class="lnk hidden" title="점심시간·퇴근 때 한 번에"><span class="lg">진행 중 모두 일시정지</span><span class="sm">모두 일시정지</span></button><button id="openLog" class="lnk" title="날짜별 시작·종료·소요시간 표 (복사·CSV)">업무 기록</button></div>
   </div>
   <div class="pane hidden" id="pane-event">
     <ul class="list" id="evList"></ul>
@@ -719,10 +799,11 @@ function paintDots() {
   root.setProperty('--ink', 'rgba(234,244,255,0.96)'); root.setProperty('--ink-soft', 'rgba(234,244,255,0.6)');
   document.body.style.background = '#070d24';
 
-  const top = H0*0.14 + insets.t, bottom = H0 - H0*0.05 - insets.b;
-  const rr = insets.r + deskReserve();   // 오른쪽 패널을 피해 지도를 배치
+  const por = isPortrait(), folded = document.body.classList.contains('desk-folded');
+  const top = por ? H0*0.325 + insets.t : H0*0.14 + insets.t, bottom = por ? H0*(folded ? 0.8 : 0.475) : H0 - H0*0.05 - insets.b;
+  const rr = por ? insets.r : insets.r + deskReserve();   // 오른쪽 패널을 피해(세로 화면에서는 위쪽 띠로) 지도를 배치
   const sp = Math.min((bottom - top) / DOT.rows, (W0*0.94 - rr) / DOT.cols);
-  const x0 = W0 - rr - W0*0.03 - sp*DOT.cols, y0 = top;
+  const x0 = por ? (W0 - sp*DOT.cols) / 2 : W0 - rr - W0*0.03 - sp*DOT.cols, y0 = top;
   dotGeom = { sp, x0, y0 };
   const now = new Date(), sun = sunPosition(now), sd = Math.sin(sun.decl), cd = Math.cos(sun.decl), R = Math.PI/180;
   const toX = lon => x0 + (lon + 180) / DOT.step * sp, toY = lat => y0 + (DOT.top - lat) / DOT.step * sp;
@@ -909,7 +990,7 @@ function overcastLevel() {
 let horizonGeo = null;
 function paintHorizon() {
   const now = new Date(), sa = sunAltAz(now, CFG.lat, CFG.lon), cloud = overcastLevel();
-  const hy = H * 0.62; setHorizonLine(hy);
+  const hy = H * (isPortrait() ? 0.4 : 0.62); setHorizonLine(hy);
   const alt = sa.alt, low = Math.max(0, 1 - Math.abs(alt) / 12);
   // 하늘: 천정·중간·지평 3단 + 해 쪽 노을
   const ZEN = [[-18,[4,7,20]],[-10,[10,16,44]],[-4,[26,34,86]],[0,[46,62,130]],[5,[52,96,178]],[15,[44,110,205]],[60,[30,94,196]]];
@@ -1081,7 +1162,7 @@ function renderMoonDisc(D, f) { // D×D 캔버스에 달을 그림: 달 표면 �
   moonCache = { key, c }; return c;
 }
 function paintMoon() {
-  const hy = H * 0.74; setHorizonLine(hy);
+  const hy = moonHy(); setHorizonLine(hy);
   const g = bctx.createLinearGradient(0, 0, 0, hy);
   g.addColorStop(0, '#050817'); g.addColorStop(0.7, '#141638'); g.addColorStop(1, '#2a2552');
   bctx.fillStyle = g; bctx.fillRect(0, 0, W, hy + 2);
@@ -1089,7 +1170,8 @@ function paintMoon() {
   // 왼쪽 글자(시계·날씨)와 오른쪽 패널 사이의 빈 공간 한가운데에 달을 둔다
   const wideM = document.body.classList.contains('wide');
   const lb = W * (wideM ? 0.47 : 0.45), rb = W - deskReserve() - W * 0.02;
-  const r = Math.max(30, Math.min(H * (wideM ? 0.2 : 0.22), (rb - lb) / 2 * 0.95)), cx = (lb + rb) / 2, cy = H * (wideM ? 0.6 : 0.36);
+  const por = isPortrait();   // 세로: 시계 오른쪽 위의 빈 자리에 작게
+  const r = por ? Math.max(24, Math.min(W * 0.1, H * 0.07)) : Math.max(30, Math.min(H * (wideM ? 0.2 : 0.22), (rb - lb) / 2 * 0.95)), cx = por ? W * 0.84 : (lb + rb) / 2, cy = por ? H * 0.19 : H * (wideM ? 0.6 : 0.36);
   moonGeo = { cx, cy, r, illum };
   // 달빛 번짐
   const litX = cx + Math.sin(2*Math.PI*f) * r * 0.3;
@@ -1170,8 +1252,8 @@ function drawMoonFx(t) {
     ctx.globalAlpha = base * near;       ctx.drawImage(bright, x - w/2, y - h/2, w, h);
   }
   // 흐린 날엔 하늘 전체에도 구름층
-  if (oc > 0.35) drawCloudDeck(t, H*0.74, [52,56,86], oc);
-  drawDistantWeather(t, H*0.74);
+  if (oc > 0.35) drawCloudDeck(t, moonHy(), [52,56,86], oc);
+  drawDistantWeather(t, moonHy());
   ctx.globalAlpha = 1;
 }
 
@@ -1456,7 +1538,7 @@ function updateCamera(force) {
       padding: { top: ch*0.45, bottom: 0, left: 0, right: 0 }, duration: force ? 0 : 2500 });
     return;
   }
-  const padding = { left: W*0.46, right: W*0.05 + deskReserve(), top: H*0.22, bottom: H*0.36 };
+  const padding = isPortrait() ? { left: W*0.08, right: W*0.08, top: H*0.2, bottom: H*0.62 } : { left: W*0.46, right: W*0.05 + deskReserve(), top: H*0.22, bottom: H*0.36 };
   const dest = store.get('dest', null);
   if (dest && dest.coords && dest.coords.length > 1) {
     const b = new maplibregl.LngLatBounds();
@@ -2183,10 +2265,11 @@ function updateAudioHint() {
 function askNotify() { try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().then(() => { if (!$('settings').classList.contains('hidden')) renderSettings(); }); } catch (e) {} }
 function notifyDesktop(title, body, sticky) {
   try {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const n = new Notification(title, { body, tag: 'sg-' + title, requireInteraction: !!sticky });
-      n.onclick = () => { window.focus(); n.close(); };
-    }
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opt = { body, tag: 'sg-' + title, requireInteraction: !!sticky, icon: 'icon-192.png', badge: 'icon-192.png' };
+    const direct = () => { try { const n = new Notification(title, opt); n.onclick = () => { window.focus(); n.close(); }; } catch (e) {} };
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r ? r.showNotification(title, opt) : direct()).catch(direct);
+    else direct();
   } catch (e) {}
 }
 
@@ -2224,7 +2307,7 @@ function renderTodos() {
     <li data-id="${t.id}" class="td${t.done ? ' done' : ''}${run ? ' running' : ''}${paused ? ' paused' : ''}" draggable="${!t.done && !run && !paused}">
       <button class="chk" aria-label="${t.done ? '완료 취소' : '완료로 표시'}">${CHECKSVG}</button>
       <span class="tmain"><span class="txt" title="더블클릭해서 수정">${escapeHtml(t.text)}</span>${subLine(t)}${run || paused ? act : ''}</span>
-      ${run || paused ? '' : act}<button class="del" aria-label="삭제">×</button>
+      ${run || paused ? '' : act}<button class="edit" data-edit aria-label="수정">✎</button><button class="del" aria-label="삭제">×</button>
     </li>`;
   }).join('') : '<li class="empty">할 일을 아래 칸에 적어보세요.<br>Enter로 추가 · <b>▶ 시작</b> / <b>‖ 일시정지</b> / <b>■ 완료</b>로 업무 시간 기록<br>더블클릭으로 수정 · 끌어서 순서 변경</li>';
   $('clearDone').classList.toggle('hidden', !liveTodos().some(t => t.done));
@@ -2274,6 +2357,8 @@ $('todoList').addEventListener('dragover', e => {
   const dragEl = $('todoList').querySelector(`li[data-id="${dragId}"]`);
   const r = over.getBoundingClientRect(); over.parentNode.insertBefore(dragEl, e.clientY < r.top + r.height / 2 ? over : over.nextSibling);
 });
+$('todoAdd').addEventListener('click', () => { addTodo($('todoInput').value, false); $('todoInput').value = ''; $('todoInput').focus(); });
+$('todoAddGo').addEventListener('click', () => { addTodo($('todoInput').value, true); $('todoInput').value = ''; });
 $('clearDone').addEventListener('click', () => {
   const now = Date.now();
   todos.forEach(t => { if (!t.hidden && t.done && hasRecord(t)) { t.hidden = true; t.hiddenAt = now; } });   // 시간 기록이 있는 완료 업무는 목록에서만 숨기고 기록 보관(90일)
@@ -2632,16 +2717,25 @@ pruneDesk();
 setInterval(() => { pruneDesk(); renderEvents(); updateNextUp(); updateAudioHint(); }, 30000);
 
 /* ── 패널 접기 · 배치 ── */
-function deskReserve() { // 오른쪽 패널이 차지하는 폭(px): 달·천문도·지도가 패널을 피해 배치되도록
-  const el = $('desk'); if (!el || document.body.classList.contains('desk-folded')) return 0;
+function isPortrait() { return document.body.classList.contains('portrait'); }
+function moonHy() { return H * (isPortrait() ? 0.42 : 0.74); }
+function deskReserve() { // 오른쪽 패널이 차지하는 폭(px): 달·천문도·지도가 패널을 피해 배치되도록 (세로 화면에서는 패널이 아래에 있으므로 0)
+  const el = $('desk'); if (!el || document.body.classList.contains('desk-folded') || isPortrait()) return 0;
   return el.getBoundingClientRect().width + innerWidth * 0.035 + 12;
 }
-const layoutMode = () => innerWidth / innerHeight >= 2.2 ? 'wide' : 'normal';
+// 세로(휴대폰 · 태블릿 세로) / 가로로 아주 긴 바 모니터 · 높이가 낮은 가로 휴대폰 / 보통
+const layoutMode = () => { const r = innerWidth / innerHeight; return r < 0.85 ? 'portrait' : (r >= 2.2 || innerHeight < 520) ? 'wide' : 'normal'; };
+const typingNow = () => { const a = document.activeElement; return !!a && (['INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName) || a.isContentEditable); };
 function applyDeskLayout() {
-  document.body.classList.toggle('wide', layoutMode() === 'wide');
+  // 휴대폰에서 글을 입력하면 키보드 때문에 화면 높이가 줄어드는데, 그때 배치가 뒤바뀌지 않도록 입력 중에는 유지
+  if (typingNow() && (document.body.classList.contains('portrait') || document.body.classList.contains('wide'))) return;
+  const m = layoutMode();
+  document.body.classList.toggle('portrait', m === 'portrait'); document.body.classList.toggle('wide', m === 'wide');
   document.body.classList.toggle('desk-folded', !!pcSet.folded);
-  requestAnimationFrame(() => { const sk = currentSkin(); if (sk === 'dots' || sk === 'moon') paintBg(); if (map) { map.resize(); updateCamera(true); } });
+  $('todoInput').placeholder = (m === 'portrait' || matchMedia('(hover: none)').matches) ? '할 일 입력' : '할 일을 적고 Enter  (Ctrl+Enter = 바로 시작)';
+  requestAnimationFrame(() => { paintBg(); if (map) { map.resize(); updateCamera(true); } });
 }
+addEventListener('focusout', () => setTimeout(applyDeskLayout, 120));
 function toggleFold() { pcSet.folded = !pcSet.folded; savePc(); applyDeskLayout(); }
 $('deskFold').addEventListener('click', toggleFold);
 $('deskPill').addEventListener('click', toggleFold);

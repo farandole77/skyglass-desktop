@@ -1,5 +1,5 @@
 // 화면 파일은 네트워크 우선(새 버전 바로 반영), 인터넷이 없으면 저장본으로 실행. 날씨·지도는 항상 네트워크.
-const CACHE = 'skyglass-desk-v1';
+const CACHE = 'skyglass-desk-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.png', './icon-192.png',
   './vendor/maplibre-gl.js', './vendor/maplibre-gl.css',
   './fonts/outfit-latin-300-normal.woff2', './fonts/outfit-latin-600-normal.woff2', './fonts/outfit-latin-700-normal.woff2', './fonts/PretendardVariable.woff2',
@@ -13,4 +13,13 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   e.respondWith(fetch(e.request).then(r => { if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); } return r; })
     .catch(() => caches.match(e.request)));
+});
+
+// 알림을 누르면 이미 열려 있는 창으로 돌아가고, 없으면 새로 연다
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    for (const c of cs) if ('focus' in c) return c.focus();
+    return self.clients.openWindow('./');
+  }));
 });
