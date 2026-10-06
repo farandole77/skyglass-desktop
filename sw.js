@@ -1,5 +1,5 @@
 // 화면 파일은 네트워크 우선(새 버전 바로 반영), 인터넷이 없으면 저장본으로 실행. 날씨·지도는 항상 네트워크.
-const CACHE = 'skyglass-desk-v2';
+const CACHE = 'skyglass-desk-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.png', './icon-192.png',
   './vendor/maplibre-gl.js', './vendor/maplibre-gl.css',
   './fonts/outfit-latin-300-normal.woff2', './fonts/outfit-latin-600-normal.woff2', './fonts/outfit-latin-700-normal.woff2', './fonts/PretendardVariable.woff2',
