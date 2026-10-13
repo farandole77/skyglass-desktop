@@ -87,6 +87,16 @@
   #now svg { width: 1.5em; height: 1.5em; }
   #nowTemp { font-variant-numeric: tabular-nums; }
   #sun { color: var(--ink-soft); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+  #hw { color: var(--ink-soft); font-size: 0.88em; font-variant-numeric: tabular-nums; }
+  #hw:empty { display: none; }
+  #hw .hi { margin-left: 0.9em; white-space: nowrap; }
+  #hw .hi b { font-weight: 700; color: var(--ink); }
+  #hw .hi.w b { color: #ffa726; text-shadow: 0 0 0.6em rgba(0,0,0,0.30); }
+  #hw .hi.h b { color: #ff4d4d; text-shadow: 0 0 0.6em rgba(0,0,0,0.35); animation: hwpulse 1.4s ease-in-out infinite; }
+  #hw .off { opacity: 0.7; }
+  #hwUrl { font: inherit; font-size: 0.8em; color: inherit; background: rgba(255,255,255,0.14); border: 0; border-radius: 0.6em; padding: 0.45em 0.8em; outline: none; }
+  #hwUrl:focus { background: rgba(255,255,255,0.24); }
+  @keyframes hwpulse { 50% { opacity: 0.55; } }
 
   /* 목적지 라벨 (지도 마커) */
   .dest { transform: translateY(-50%); pointer-events: none; }
@@ -487,6 +497,7 @@
   <div id="loc">위치 확인 중</div>
   <div id="now"><span id="icon"></span><span id="nowDesc"></span><span id="nowTemp"></span></div>
   <div id="sun"></div>
+  <div id="hw"></div>
 </div>
 
 <div id="face" class="ui">
@@ -2400,6 +2411,7 @@ function renderSettings() {
     <div class="st-sec"><div class="st-label">${proState.early ? '안내' : 'Pro'}</div>${pro}</div>
     ${seasonSettingsHtml()}
     ${pcSettingsHtml()}
+    ${hwSettingsHtml()}
     <div class="st-sec"><div class="st-label">화면 여백 (모니터 가장자리가 잘릴 때)</div><div class="inset">${insetRow()}</div></div>`;
 }
 function openSettings() { renderSettings(); $('settings').classList.remove('hidden'); $('debug').classList.add('hidden'); }
@@ -3431,6 +3443,82 @@ checkStale(); setInterval(checkStale, 5 * 60e3);
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 requestAnimationFrame(frame);
+
+/* ───────── PC 온도 표시 (LibreHardwareMonitor / Open Hardware Monitor 의 '원격 웹 서버' data.json 읽기) ─────────
+   센서 프로그램에서 Options → Remote Web Server → Run 을 켜 두면 http://localhost:8085/data.json 으로 센서 값이 나온다.
+   브라우저가 직접 읽지 못하면(CORS·로컬 접근 차단) SensorRelay.ps1 을 켜 두고 주소를 http://localhost:8086/ 으로 바꾼다. 값은 이 PC 안에서만 오간다. */
+const hwSet = Object.assign({ on: false, url: 'http://localhost:8085/data.json', warn: 80 }, store.get('hwSet', {}));
+const saveHw = () => store.set('hwSet', hwSet);
+const HW_TEMP = v => { const m = /-?\d+(?:[.,]\d+)?/.exec(String(v == null ? '' : v)); return m ? parseFloat(m[0].replace(',', '.')) : null; };
+function hwParse(root) {
+  const found = { cpu: [], gpu: [], ssd: [] };   // [{name, v}]
+  const GPU = /gpu|geforce|nvidia|radeon|graphics|\barc\b|\buhd\b|\biris\b|ati\.png/i, DISK = /nvme|hdd|ssd|storage|disk|samsung|kingston|crucial|\bwd\b|seagate|hynix/i, CPU = /cpu|intel|amd|ryzen|core i|xeon|processor|threadripper/i;
+  (function walk(n, ctx) {
+    if (!n || typeof n !== 'object') return;
+    const here = ctx + ' ' + (n.Text || '') + ' ' + (n.ImageURL || '');
+    const val = n.Value != null && /°C|℃/.test(String(n.Value)) ? HW_TEMP(n.Value) : null;
+    if (val != null && isFinite(val) && val > -30 && val < 160) {
+      const sid = String(n.SensorId || n.Id || '').toLowerCase();
+      let kind = null;
+      if (/\/(gpu|nvidia|amdgpu|intelgpu)/.test(sid) || /^\/gpu/.test(sid)) kind = 'gpu';
+      else if (/\/(nvme|hdd|ssd|storage)\//.test(sid)) kind = 'ssd';
+      else if (/\/(intelcpu|amdcpu|cpu)\//.test(sid)) kind = 'cpu';
+      else if (GPU.test(here)) kind = 'gpu'; else if (DISK.test(here)) kind = 'ssd'; else if (CPU.test(here)) kind = 'cpu';
+      if (kind) found[kind].push({ name: String(n.Text || ''), v: val });
+    }
+    (n.Children || []).forEach(c => walk(c, here));
+  })(root, '');
+  const max = a => a.length ? Math.max(...a.map(x => x.v)) : null;
+  const pick = (a, prefs) => { for (const re of prefs) { const h = a.filter(x => re.test(x.name)); if (h.length) return max(h); } return max(a); };
+  return { cpu: pick(found.cpu, [/package/i, /tctl|tdie/i, /core max/i, /cpu total/i]), gpu: pick(found.gpu, [/gpu core/i, /core/i]), ssd: max(found.ssd) };
+}
+const hwLimit = kind => kind === 'ssd' ? [hwSet.warn - 15, hwSet.warn - 5] : [hwSet.warn, hwSet.warn + 10];
+function hwRender(t) {
+  const item = (label, v, kind) => { if (v == null) return ''; const [w, h] = hwLimit(kind); return `<span class="hi ${v >= h ? 'h' : v >= w ? 'w' : ''}">${label} <b>${Math.round(v)}°</b></span>`; };
+  $('hw').innerHTML = (item('CPU', t.cpu, 'cpu') + item('GPU', t.gpu, 'gpu') + item('SSD', t.ssd, 'ssd')).trim();
+}
+let hwTimer = null, hwFail = 0;
+async function hwPoll() {
+  if (!hwSet.on) { $('hw').innerHTML = ''; return { ok: false, err: '꺼져 있음' }; }
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 3500);
+    const r = await fetch(hwSet.url, { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
+    if (!r.ok) throw new Error('응답 오류 ' + r.status);
+    const t = hwParse(await r.json());
+    if (t.cpu == null && t.gpu == null && t.ssd == null) throw new Error('온도 센서를 찾지 못했어요');
+    hwFail = 0; hwRender(t); return { ok: true, t };
+  } catch (e) {
+    hwFail++; const err = e && e.name === 'AbortError' ? '응답 시간 초과' : String((e && e.message) || e);
+    if (hwFail >= 2) $('hw').innerHTML = '<span class="off">센서 연결 안 됨</span>';
+    return { ok: false, err };
+  }
+}
+function hwStart() { clearInterval(hwTimer); hwFail = 0; $('hw').innerHTML = ''; if (hwSet.on) { hwPoll(); hwTimer = setInterval(() => { if (!document.hidden) hwPoll(); }, 3000); } }
+function hwSettingsHtml() {
+  const seg = (k, cur, list) => `<div class="seg">${list.map(([v, l]) => `<button data-hw="${k}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  return `<div class="st-sec"><div class="st-label">PC 온도 표시 (LibreHardwareMonitor / Open Hardware Monitor)</div><div class="opts">
+    ${seg('on', hwSet.on ? 1 : 0, [[1, '켬'], [0, '끔']])}
+    ${seg('warn', hwSet.warn, [[75, '경고 75°'], [80, '80°'], [85, '85°'], [90, '90°']])}
+    <div class="seg"><span class="seglbl">주소</span><input type="text" id="hwUrl" value="${escapeHtml(hwSet.url)}" spellcheck="false" style="min-width:20em"><button data-hw="test">연결 시험</button></div>
+    <div id="hwMsg" style="font-size:.85em;opacity:.8;line-height:1.5"></div>
+    <div style="font-size:.78em;opacity:.65;line-height:1.5">센서 프로그램에서 Options → Remote Web Server → Run(포트 8085)을 켜 두세요. 값을 못 읽으면 SensorRelay.ps1을 실행하고 주소를 http://localhost:8086/ 으로 바꾸세요. CPU·GPU는 경고 온도부터 주황, +10°부터 빨강, SSD는 더 낮은 기준으로 표시돼요.</div>
+  </div></div>`;
+}
+$('settings').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-hw]'); if (!b) return;
+  const k = b.dataset.hw, v = b.dataset.v;
+  if (k === 'on') { hwSet.on = v === '1'; saveHw(); hwStart(); renderSettings(); return; }
+  if (k === 'warn') { hwSet.warn = +v; saveHw(); if (hwSet.on) hwPoll(); renderSettings(); return; }
+  if (k === 'test') {
+    const u = $('hwUrl'); if (u) { hwSet.url = u.value.trim() || 'http://localhost:8085/data.json'; saveHw(); }
+    const m = $('hwMsg'); m.textContent = '연결 중…';
+    const was = hwSet.on; hwSet.on = true; const r = await hwPoll(); hwSet.on = was; if (!was) $('hw').innerHTML = '';
+    m.textContent = r.ok ? '✅ 연결됨 — ' + ['CPU ' + (r.t.cpu == null ? '–' : Math.round(r.t.cpu) + '°'), 'GPU ' + (r.t.gpu == null ? '–' : Math.round(r.t.gpu) + '°'), 'SSD ' + (r.t.ssd == null ? '–' : Math.round(r.t.ssd) + '°')].join(' · ')
+      : '❌ 연결 실패 (' + r.err + ') — 센서 프로그램이 켜져 있고 웹 서버가 Run 상태인지 확인하세요. 켜져 있는데도 안 되면 브라우저가 막은 것일 수 있어요: SensorRelay.ps1 실행 후 주소를 http://localhost:8086/ 으로 바꿔 보세요.';
+  }
+});
+$('settings').addEventListener('change', e => { if (e.target.id === 'hwUrl') { hwSet.url = e.target.value.trim() || 'http://localhost:8085/data.json'; saveHw(); hwStart(); } });
+hwStart();
 </script>
 </body>
 </html>
