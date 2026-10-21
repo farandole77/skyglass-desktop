@@ -3450,6 +3450,7 @@ requestAnimationFrame(frame);
 const hwSet = Object.assign({ on: false, url: 'http://localhost:8085/data.json', warn: 80 }, store.get('hwSet', {}));
 const saveHw = () => store.set('hwSet', hwSet);
 const HW_TEMP = v => { const m = /-?\d+(?:[.,]\d+)?/.exec(String(v == null ? '' : v)); return m ? parseFloat(m[0].replace(',', '.')) : null; };
+const HW_THRESH = /warning|critical|threshold|distance|tjmax|\blimit\b|throttl|\bmax\s*temp|\bmin\s*temp|\bhigh\b.*\blimit/i;
 function hwParse(root) {
   const found = { cpu: [], gpu: [], ssd: [] };   // [{name, v}]
   const GPU = /gpu|geforce|nvidia|radeon|graphics|\barc\b|\buhd\b|\biris\b|ati\.png/i, DISK = /nvme|hdd|ssd|storage|disk|samsung|kingston|crucial|\bwd\b|seagate|hynix/i, CPU = /cpu|intel|amd|ryzen|core i|xeon|processor|threadripper/i;
@@ -3464,13 +3465,14 @@ function hwParse(root) {
       else if (/\/(nvme|hdd|ssd|storage)\//.test(sid)) kind = 'ssd';
       else if (/\/(intelcpu|amdcpu|cpu)\//.test(sid)) kind = 'cpu';
       else if (GPU.test(here)) kind = 'gpu'; else if (DISK.test(here)) kind = 'ssd'; else if (CPU.test(here)) kind = 'cpu';
-      if (kind) found[kind].push({ name: String(n.Text || ''), v: val });
+      // 경고·임계·한계 같은 '기준 온도'는 현재 온도가 아니므로 제외 (NVMe SSD가 Warning/Critical Temperature 값을 함께 노출함)
+      if (kind && !HW_THRESH.test(String(n.Text || ''))) found[kind].push({ name: String(n.Text || ''), v: val });
     }
     (n.Children || []).forEach(c => walk(c, here));
   })(root, '');
   const max = a => a.length ? Math.max(...a.map(x => x.v)) : null;
   const pick = (a, prefs) => { for (const re of prefs) { const h = a.filter(x => re.test(x.name)); if (h.length) return max(h); } return max(a); };
-  return { cpu: pick(found.cpu, [/package/i, /tctl|tdie/i, /core max/i, /cpu total/i]), gpu: pick(found.gpu, [/gpu core/i, /core/i]), ssd: max(found.ssd) };
+  return { cpu: pick(found.cpu, [/package/i, /tctl|tdie/i, /core max/i, /cpu total/i]), gpu: pick(found.gpu, [/gpu core/i, /core/i]), ssd: pick(found.ssd, [/^temperature$/i, /^temperature\s*1$/i, /composite/i]) };
 }
 const hwLimit = kind => kind === 'ssd' ? [hwSet.warn - 15, hwSet.warn - 5] : [hwSet.warn, hwSet.warn + 10];
 function hwRender(t) {
